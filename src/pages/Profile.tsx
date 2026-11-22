@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopBar } from '../components/TopBar';
+import { authService } from '../services/authService';
 
 export const Profile: React.FC = () => {
-  const [hospitalName, setHospitalName] = useState('Rajalakshmi Hospital');
-  const [hospitalEmail, setHospitalEmail] = useState('rajalakshmi@bloodbridge.in');
+  const session = authService.getSession();
+  const [hospitalName, setHospitalName] = useState(session?.institution?.name || session?.name || 'Hospital Profile');
+  const [hospitalEmail, setHospitalEmail] = useState(session?.email || 'officer@bloodbridge.local');
+  const [role, setRole] = useState(session?.role || 'HOSPITAL_OFFICER');
+  const [license, setLicense] = useState(session?.institution?.license || 'LIC-VERIFIED-2026');
+  const [locality, setLocality] = useState(session?.institution?.locality || session?.institution?.address || 'Chennai');
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);

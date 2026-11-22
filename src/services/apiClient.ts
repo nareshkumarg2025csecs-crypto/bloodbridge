@@ -44,3 +44,37 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
   return response;
 }
+
+export const apiClient = {
+  async get(endpoint: string) {
+    const res = await fetchWithAuth(endpoint, { method: 'GET' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { data, status: res.status };
+  },
+  async post(endpoint: string, body?: any) {
+    const res = await fetchWithAuth(endpoint, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { data, status: res.status };
+  },
+  async put(endpoint: string, body?: any) {
+    const res = await fetchWithAuth(endpoint, {
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { data, status: res.status };
+  },
+  async delete(endpoint: string) {
+    const res = await fetchWithAuth(endpoint, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { data, status: res.status };
+  }
+};
+

@@ -5,8 +5,8 @@ import { authService } from '../services/authService';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('rajalakshmi@bloodbridge.in');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,10 +21,10 @@ export const Login: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await authService.login(email, password);
+      await authService.login(email.trim(), password);
       navigate('/home');
-    } catch {
-      setError('Unable to authenticate. Please check your credentials.');
+    } catch (err: any) {
+      setError(err?.message || 'Unable to authenticate. Please check your credentials.');
     } finally {
       setLoading(false);
     }

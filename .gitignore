@@ -21,6 +21,11 @@ backend/.env
 backend/.env.*
 !backend/.env.example
 
+# Database dumps & backup files
+database/*.json
+*.dump
+*.sql.gz
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

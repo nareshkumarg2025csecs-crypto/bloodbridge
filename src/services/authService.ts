@@ -14,39 +14,33 @@ export interface UserSession {
 
 export const authService = {
   async login(email: string, password: string): Promise<UserSession> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        const session: UserSession = {
-          email: data.user.email,
-          token: data.access_token,
-          name: data.user.name,
-          role: data.user.role,
-          institution: data.user.institution,
-        };
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-        return session;
+    if (!response.ok) {
+      let errorDetail = 'Invalid institutional email or password.';
+      try {
+        const errJson = await response.json();
+        if (errJson.detail) errorDetail = errJson.detail;
+      } catch {
+        // use default errorDetail
       }
-    } catch (err) {
-      console.warn('Backend API connection failed, falling back to local session simulation:', err);
+      throw new Error(errorDetail);
     }
 
-    // Local fallback for offline/development resilience
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const fallbackSession: UserSession = {
-      email,
-      name: 'Rajalakshmi Hospital',
-      token: 'jwt_mock_token_' + Date.now(),
-      role: 'HOSPITAL_MEDICAL_OFFICER',
+    const data = await response.json();
+    const session: UserSession = {
+      email: data.user.email,
+      token: data.access_token,
+      name: data.user.name,
+      role: data.user.role,
+      institution: data.user.institution,
     };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(fallbackSession));
-    return fallbackSession;
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+    return session;
   },
 
   logout(): void {
@@ -54,6 +48,7 @@ export const authService = {
       fetchWithAuth('/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.clear();
     }
   },
 

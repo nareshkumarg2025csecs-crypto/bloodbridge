@@ -8,6 +8,10 @@ import { requestRouter } from './routes/requestRoutes';
 import { alertRouter } from './routes/alertRoutes';
 import { profileRouter } from './routes/profileRoutes';
 import { chatRouter } from './routes/chatRoutes';
+import { networkRouter } from './routes/networkRoutes';
+import { deliveryRouter } from './routes/deliveryRoutes';
+import { governmentRouter } from './routes/governmentRoutes';
+import { networkRequestsRouter } from './routes/networkRequestsRoutes';
 import { wsGateway } from './websocket/gateway';
 import { nexconnService } from './services/nexconnService';
 
@@ -38,6 +42,10 @@ app.use(`${prefix}/requests`, requestRouter);
 app.use(`${prefix}/alerts`, alertRouter);
 app.use(`${prefix}/profile`, profileRouter);
 app.use(`${prefix}/chat`, chatRouter);
+app.use(`${prefix}/network`, networkRouter);
+app.use(`${prefix}/deliveries`, deliveryRouter);
+app.use(`${prefix}/government`, governmentRouter);
+app.use(`${prefix}/network-requests`, networkRequestsRouter);
 
 // Initialize WebSockets Gateway & Nexconn Service
 wsGateway.initialize(server);

@@ -85,12 +85,14 @@ class ChatService {
           }));
 
           // Register message handler for live incoming messages
+          NCEngine.removeMessageHandler('bb-msg-handler');
           NCEngine.addMessageHandler('bb-msg-handler', new MessageHandler({
             onMessageReceived: ({ messages }) => {
               console.log('[Nexconn SDK] Real-time messages received from cloud:', messages);
               messages.forEach((m: any) => {
+                const messageId = m.messageId ? String(m.messageId) : `nc-${Date.now()}`;
                 const incoming: ChatMessage = {
-                  id: m.messageId || `nc-${Date.now()}`,
+                  id: messageId,
                   channelId: m.targetId,
                   senderId: m.senderUserId,
                   senderName: m.senderUserId,
@@ -179,7 +181,7 @@ class ChatService {
       id: 'msg-' + Date.now(),
       channelId,
       senderId: 'self',
-      senderName: 'Rajalakshmi Hospital',
+      senderName: 'Hospital Staff',
       senderType: 'user',
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

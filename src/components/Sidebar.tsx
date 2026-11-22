@@ -11,6 +11,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Home', path: '/home', iconPath: '/icons/home.svg' },
+  { name: 'National Live Network', path: '/national-network', iconPath: '/icons/inventory.svg' },
+  { name: 'Data Integrations', path: '/data-integrations', iconPath: '/icons/alerts.svg' },
+  { name: 'Live Blood Network', path: '/live-network', iconPath: '/icons/inventory.svg' },
+  { name: 'Delivery Tracking', path: '/delivery-tracking', iconPath: '/icons/requests.svg' },
+  { name: 'Coordination', path: '/coordination', iconPath: '/icons/alerts.svg' },
   { name: 'Inventory', path: '/inventory', iconPath: '/icons/inventory.svg' },
   { name: 'Requests', path: '/requests', iconPath: '/icons/requests.svg' },
   { name: 'Chat', path: '/chat', iconPath: '/icons/chat.svg' },

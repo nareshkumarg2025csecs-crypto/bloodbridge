@@ -4,9 +4,14 @@ import { HeroBanner } from '../components/HeroBanner';
 import { StatCard } from '../components/StatCard';
 import { ExpiryAlertCard } from '../components/ExpiryAlertCard';
 import { inventoryService } from '../services/inventoryService';
-import { initialAlerts, currentHospital, StatSummary } from '../data/mockData';
+import { authService } from '../services/authService';
+import { initialAlerts, StatSummary } from '../data/mockData';
 
 export const Home: React.FC = () => {
+  const session = authService.getSession();
+  const displayName = session?.institution?.name || session?.name || 'Healthcare Facility';
+  const roleDisplay = session?.role ? session.role.replace(/_/g, ' ') : '';
+
   const [stats, setStats] = useState<StatSummary>({
     totalUnits: 0,
     partnerBanksCount: 0,
@@ -29,8 +34,8 @@ export const Home: React.FC = () => {
       {/* Hero Welcome Banner with 3D Glossy Red Blood Drop */}
       <section aria-label="Welcome Banner" className="relative">
         <HeroBanner
-          hospitalName={currentHospital.name}
-          subtitle="Together for a healthier community."
+          hospitalName={displayName}
+          subtitle={`Logged in as ${session?.name || 'Authorized Staff'} (${roleDisplay || 'Transfusion Officer'}). Together for a healthier community.`}
         />
       </section>
 

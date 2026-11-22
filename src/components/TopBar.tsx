@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authService } from '../services/authService';
 
 interface TopBarProps {
   onOpenMobileMenu?: () => void;
@@ -17,6 +18,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   actionButton,
 }) => {
   const navigate = useNavigate();
+  const session = authService.getSession();
+  const initial = session?.name ? session.name.charAt(0).toUpperCase() : 'H';
 
   return (
     <header className="w-full flex items-center justify-between pb-4 sm:pb-6">
@@ -57,13 +60,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-alert ring-2 ring-white"></span>
         </button>
 
-        {/* Hospital Avatar - Dark Navy circle with white 'H' */}
+        {/* Hospital Avatar - Dark Navy circle with user/institution initial */}
         <button
           onClick={() => navigate('/profile')}
           className="w-10 h-10 rounded-full bg-navy flex items-center justify-center text-white font-semibold text-base shadow-soft hover:opacity-95 transition-opacity cursor-pointer"
           aria-label="Hospital Profile"
+          title={session?.name || 'User Profile'}
         >
-          H
+          {initial}
         </button>
       </div>
     </header>
