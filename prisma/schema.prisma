@@ -1,0 +1,661 @@
+// ==============================================================================
+// BLOODBRIDGE PRISMA SCHEMA (MYSQL 8.0.46)
+// Engine: MySQL InnoDB | Charset: utf8mb4 | SRID 4326 Compatible
+//
+// MEDICAL SAFETY NOTICE:
+// Blood group matching alone does NOT establish transfusion compatibility.
+// Clinical compatibility and crossmatching require qualified medical release.
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------------------
+// 1. USERS & ROLES
+// ------------------------------------------------------------------------------
+
+model User {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  email        String    @unique(map: "uq_users_email") @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  firstName    String    @map("first_name") @db.VarChar(100)
+  lastName     String    @map("last_name") @db.VarChar(100)
+  phoneNumber  String    @unique(map: "uq_users_phone") @map("phone_number") @db.VarChar(20)
+  isActive     Boolean   @default(true) @map("is_active")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  lastLoginAt  DateTime? @map("last_login_at") @db.DateTime(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  userRoles               UserRole[]
+  staffProfiles           InstitutionStaff[]
+  bloodRequests           BloodRequest[]
+  reservationsCreated     Reservation[]
+  inventoryMovements      InventoryMovement[]
+  messagesSent            Message[]
+  notificationsReceived   Notification[]
+  auditLogs               AuditLog[]
+  consentRecords          ConsentRecord[]
+  updatedInventoryBatches BloodInventory[]     @relation("InventoryUpdater")
+  reviewedVerifications   InstitutionVerification[] @relation("VerificationReviewer")
+
+  @@index([isActive, isVerified], map: "idx_users_active_verified")
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  name        String   @unique(map: "uq_roles_name") @db.VarChar(50)
+  description String   @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId     BigInt   @map("user_id") @db.UnsignedBigInt
+  roleId     Int      @map("role_id") @db.UnsignedInt
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.DateTime(3)
+  assignedBy BigInt?  @map("assigned_by") @db.UnsignedBigInt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_user_roles_user")
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_user_roles_role")
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ------------------------------------------------------------------------------
+// 2. INSTITUTIONS, BRANCHES & STAFF
+// ------------------------------------------------------------------------------
+
+enum InstitutionType {
+  GOVERNMENT_BLOOD_BANK
+  PRIVATE_BLOOD_BANK
+  HOSPITAL
+  STORAGE_CENTRE
+  REGISTERED_INSTITUTION
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+model Institution {
+  id                 BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  name               String             @db.VarChar(255)
+  institutionType    InstitutionType    @map("institution_type")
+  licenseNumber      String             @unique(map: "uq_institutions_license") @map("license_number") @db.VarChar(100)
+  officialEmail      String             @unique(map: "uq_institutions_email") @map("official_email") @db.VarChar(255)
+  officialPhone      String             @map("official_phone") @db.VarChar(30)
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt         DateTime?          @map("verified_at") @db.DateTime(3)
+  verifiedBy         BigInt?            @map("verified_by") @db.UnsignedBigInt
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  branches              InstitutionBranch[]
+  staff                 InstitutionStaff[]
+  verifications         InstitutionVerification[]
+  inventoryBatches      BloodInventory[]
+  inventoryUnits        BloodInventoryUnit[]
+  bloodRequests         BloodRequest[]
+  holdingReservations   Reservation[]
+  conversationsAsA      Conversation[]            @relation("ConversationInstA")
+  conversationsAsB      Conversation[]            @relation("ConversationInstB")
+  messagesSent          Message[]
+  notificationsReceived Notification[]
+  consentRecords        ConsentRecord[]
+
+  @@index([institutionType, verificationStatus], map: "idx_institutions_type_status")
+  @@map("institutions")
+}
+
+model InstitutionBranch {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  institutionId  BigInt   @map("institution_id") @db.UnsignedBigInt
+  branchName     String   @map("branch_name") @db.VarChar(255)
+  addressLine1   String   @map("address_line1") @db.VarChar(255)
+  addressLine2   String?  @map("address_line2") @db.VarChar(255)
+  area           String   @db.VarChar(100)
+  city           String   @default("Chennai") @db.VarChar(100)
+  district       String   @default("Chennai") @db.VarChar(100)
+  state          String   @default("Tamil Nadu") @db.VarChar(100)
+  country        String   @default("India") @db.VarChar(100)
+  postalCode     String   @map("postal_code") @db.VarChar(20)
+  latitude       Decimal  @db.Decimal(10, 8)
+  longitude      Decimal  @db.Decimal(11, 8)
+  contactPhone   String   @map("contact_phone") @db.VarChar(30)
+  contactEmail   String?  @map("contact_email") @db.VarChar(255)
+  operatingHours String   @default("24/7") @map("operating_hours") @db.VarChar(100)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  institution      Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade, map: "fk_branches_institution")
+  staff            InstitutionStaff[]
+  inventoryBatches BloodInventory[]
+  inventoryUnits   BloodInventoryUnit[]
+  bloodRequests    BloodRequest[]
+  reservationsHeld Reservation[]
+
+  @@index([institutionId], map: "idx_branches_institution")
+  @@index([area, city], map: "idx_branches_area_city")
+  @@map("institution_branches")
+}
+
+enum StaffRole {
+  MEDICAL_DIRECTOR
+  PATHOLOGIST
+  BLOOD_BANK_OFFICER
+  LAB_TECHNICIAN
+  COORDINATOR
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+}
+
+model InstitutionStaff {
+  id                        BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  institutionId             BigInt      @map("institution_id") @db.UnsignedBigInt
+  branchId                  BigInt?     @map("branch_id") @db.UnsignedBigInt
+  userId                    BigInt      @map("user_id") @db.UnsignedBigInt
+  staffRole                 StaffRole   @map("staff_role")
+  medicalRegistrationNumber String?     @map("medical_registration_number") @db.VarChar(100)
+  isAuthorizedVerifier      Boolean     @default(false) @map("is_authorized_verifier")
+  status                    StaffStatus @default(ACTIVE)
+  createdAt                 DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                 DateTime    @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  institution Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade, map: "fk_staff_institution")
+  branch      InstitutionBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull, map: "fk_staff_branch")
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_staff_user")
+
+  verifiedUnits BloodInventoryUnit[] @relation("UnitVerifier")
+
+  @@unique([userId, institutionId, branchId], map: "uq_staff_user_inst_branch")
+  @@index([isAuthorizedVerifier], map: "idx_staff_authorized")
+  @@map("institution_staff")
+}
+
+enum VerificationDocType {
+  DRUG_CONTROL_LICENSE
+  CLINICAL_ESTABLISHMENT_ACT
+  NABH_ACCREDITATION
+  MOHFW_APPROVAL
+}
+
+enum DocVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model InstitutionVerification {
+  id                 BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  institutionId      BigInt                @map("institution_id") @db.UnsignedBigInt
+  verificationType   VerificationDocType   @map("verification_type")
+  documentReference  String                @map("document_reference") @db.VarChar(255)
+  documentHash       String                @map("document_hash") @db.VarChar(128)
+  issuedBy           String                @map("issued_by") @db.VarChar(255)
+  validFrom          DateTime              @map("valid_from") @db.Date
+  validUntil         DateTime              @map("valid_until") @db.Date
+  verificationStatus DocVerificationStatus @default(PENDING) @map("verification_status")
+  reviewedBy         BigInt?               @map("reviewed_by") @db.UnsignedBigInt
+  reviewedAt         DateTime?             @map("reviewed_at") @db.DateTime(3)
+  reviewRemarks      String?               @map("review_remarks") @db.Text
+  createdAt          DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade, map: "fk_verif_institution")
+  reviewer    User?       @relation("VerificationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull, map: "fk_verif_reviewer")
+
+  @@index([institutionId, verificationStatus], map: "idx_verif_institution_status")
+  @@map("institution_verifications")
+}
+
+// ------------------------------------------------------------------------------
+// 3. BLOOD CATALOG
+// ------------------------------------------------------------------------------
+
+enum AboGroup {
+  A
+  B
+  AB
+  O
+}
+
+enum RhFactor {
+  POSITIVE
+  NEGATIVE
+}
+
+model BloodGroup {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  aboGroup    AboGroup @map("abo_group")
+  rhFactor    RhFactor @map("rh_factor")
+  label       String   @unique(map: "uq_blood_group_label") @db.VarChar(10)
+  antigenA    Boolean  @map("antigen_a")
+  antigenB    Boolean  @map("antigen_b")
+  antigenD    Boolean  @map("antigen_d")
+  description String   @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+
+  inventoryBatches BloodInventory[]
+  inventoryUnits   BloodInventoryUnit[]
+  bloodRequests    BloodRequest[]
+
+  @@unique([aboGroup, rhFactor], map: "uq_blood_group_abo_rh")
+  @@map("blood_groups")
+}
+
+enum PhenotypeCategory {
+  BOMBAY
+  RH_VARIANT
+  KELL
+  DUFFY
+  KIDD
+  MNS
+  OTHER_RARE
+}
+
+model BloodPhenotype {
+  id                         BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  code                       String            @unique(map: "uq_phenotypes_code") @db.VarChar(50)
+  name                       String            @db.VarChar(100)
+  isRare                     Boolean           @default(true) @map("is_rare")
+  category                   PhenotypeCategory
+  clinicallyRelevantAntigens Json              @map("clinically_relevant_antigens")
+  transfusionSafetyWarning   String            @map("transfusion_safety_warning") @db.Text
+  description                String            @db.Text
+  isActive                   Boolean           @default(true) @map("is_active")
+  createdAt                  DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+
+  inventoryBatches BloodInventory[]
+  inventoryUnits   BloodInventoryUnit[]
+  bloodRequests    BloodRequest[]
+
+  @@index([isRare, category], map: "idx_phenotypes_rare_category")
+  @@map("blood_phenotypes")
+}
+
+model BloodComponent {
+  id                        Int     @id @default(autoincrement()) @db.UnsignedInt
+  code                      String  @unique(map: "uq_components_code") @db.VarChar(50)
+  name                      String  @db.VarChar(100)
+  storageTemperatureCelsius String  @map("storage_temperature_celsius") @db.VarChar(50)
+  standardShelfLifeDays     Int     @map("standard_shelf_life_days") @db.UnsignedInt
+  volumeMlMin               Decimal @map("volume_ml_min") @db.Decimal(6, 2)
+  volumeMlMax               Decimal @map("volume_ml_max") @db.Decimal(6, 2)
+  requiresAgitation         Boolean @default(false) @map("requires_agitation")
+  clinicalNotes             String? @map("clinical_notes") @db.Text
+  isActive                  Boolean @default(true) @map("is_active")
+
+  inventoryBatches BloodInventory[]
+  inventoryUnits   BloodInventoryUnit[]
+  bloodRequests    BloodRequest[]
+
+  @@map("blood_components")
+}
+
+// ------------------------------------------------------------------------------
+// 4. INVENTORY & UNIT-LEVEL TRACEABILITY
+// ------------------------------------------------------------------------------
+
+model BloodInventory {
+  id               BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  institutionId    BigInt   @map("institution_id") @db.UnsignedBigInt
+  branchId         BigInt   @map("branch_id") @db.UnsignedBigInt
+  bloodGroupId     Int      @map("blood_group_id") @db.UnsignedInt
+  phenotypeId      BigInt?  @map("phenotype_id") @db.UnsignedBigInt
+  bloodComponentId Int      @map("blood_component_id") @db.UnsignedInt
+  availableUnits   Int      @default(0) @map("available_units") @db.UnsignedInt
+  reservedUnits    Int      @default(0) @map("reserved_units") @db.UnsignedInt
+  quarantinedUnits Int      @default(0) @map("quarantined_units") @db.UnsignedInt
+  expiredUnits     Int      @default(0) @map("expired_units") @db.UnsignedInt
+  lastUpdatedBy    BigInt?  @map("last_updated_by") @db.UnsignedBigInt
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  institution    Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict, map: "fk_inventory_institution")
+  branch         InstitutionBranch  @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "fk_inventory_branch")
+  bloodGroup     BloodGroup         @relation(fields: [bloodGroupId], references: [id], onDelete: Restrict, map: "fk_inventory_blood_group")
+  phenotype      BloodPhenotype?    @relation(fields: [phenotypeId], references: [id], onDelete: Restrict, map: "fk_inventory_phenotype")
+  bloodComponent BloodComponent     @relation(fields: [bloodComponentId], references: [id], onDelete: Restrict, map: "fk_inventory_component")
+  updater        User?              @relation("InventoryUpdater", fields: [lastUpdatedBy], references: [id], onDelete: SetNull, map: "fk_inventory_updater")
+  units          BloodInventoryUnit[]
+
+  @@unique([institutionId, branchId, bloodGroupId, phenotypeId, bloodComponentId], map: "uq_inventory_composite")
+  @@index([branchId, bloodGroupId, bloodComponentId, availableUnits], map: "idx_inventory_search")
+  @@map("blood_inventory")
+}
+
+enum UnitStatus {
+  AVAILABLE
+  RESERVED
+  EXPIRED
+  QUARANTINED
+  UNAVAILABLE
+  PENDING_VERIFICATION
+}
+
+enum UnitVerificationStatus {
+  UNVERIFIED
+  LAB_VERIFIED
+  REJECTED
+}
+
+model BloodInventoryUnit {
+  id                        BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  inventoryId               BigInt                 @map("inventory_id") @db.UnsignedBigInt
+  unitIdentifier            String                 @unique(map: "uq_units_identifier") @map("unit_identifier") @db.VarChar(100)
+  institutionId             BigInt                 @map("institution_id") @db.UnsignedBigInt
+  branchId                  BigInt                 @map("branch_id") @db.UnsignedBigInt
+  bloodGroupId              Int                    @map("blood_group_id") @db.UnsignedInt
+  phenotypeId               BigInt?                @map("phenotype_id") @db.UnsignedBigInt
+  bloodComponentId          Int                    @map("blood_component_id") @db.UnsignedInt
+  volumeMl                  Decimal                @map("volume_ml") @db.Decimal(6, 2)
+  collectionDate            DateTime               @map("collection_date") @db.Date
+  expiryDate                DateTime               @map("expiry_date") @db.Date
+  status                    UnitStatus             @default(PENDING_VERIFICATION)
+  verificationStatus        UnitVerificationStatus @default(UNVERIFIED) @map("verification_status")
+  verifiedByStaffId         BigInt?                @map("verified_by_staff_id") @db.UnsignedBigInt
+  verifiedAt                DateTime?              @map("verified_at") @db.DateTime(3)
+  verificationNotes         String?                @map("verification_notes") @db.Text
+  storageLocationRef        String                 @map("storage_location_ref") @db.VarChar(100)
+  storageTemperatureCurrent Decimal?               @map("storage_temperature_current") @db.Decimal(4, 1)
+  createdAt                 DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                 DateTime               @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  inventory      BloodInventory     @relation(fields: [inventoryId], references: [id], onDelete: Cascade, map: "fk_units_inventory")
+  institution    Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict, map: "fk_units_institution")
+  branch         InstitutionBranch  @relation(fields: [branchId], references: [id], onDelete: Cascade, map: "fk_units_branch")
+  bloodGroup     BloodGroup         @relation(fields: [bloodGroupId], references: [id], onDelete: Restrict, map: "fk_units_blood_group")
+  phenotype      BloodPhenotype?    @relation(fields: [phenotypeId], references: [id], onDelete: Restrict, map: "fk_units_phenotype")
+  bloodComponent BloodComponent     @relation(fields: [bloodComponentId], references: [id], onDelete: Restrict, map: "fk_units_component")
+  verifier       InstitutionStaff?  @relation("UnitVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull, map: "fk_units_verifier")
+
+  reservations       Reservation[]
+  inventoryMovements InventoryMovement[]
+
+  @@index([status, expiryDate], map: "idx_units_status_expiry")
+  @@index([branchId, bloodGroupId, bloodComponentId, status], map: "idx_units_branch_group_component")
+  @@map("blood_inventory_units")
+}
+
+// ------------------------------------------------------------------------------
+// 5. REQUESTS, CONCURRENCY-SAFE RESERVATIONS & MOVEMENTS
+// ------------------------------------------------------------------------------
+
+enum UrgencyLevel {
+  CRITICAL_EMERGENCY
+  URGENT
+  STANDARD
+  ELECTIVE
+}
+
+enum RequestStatus {
+  OPEN
+  PARTIALLY_FULFILLED
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+model BloodRequest {
+  id                      BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  requestCode             String         @unique(map: "uq_requests_code") @map("request_code") @db.VarChar(50)
+  requestingInstitutionId BigInt         @map("requesting_institution_id") @db.UnsignedBigInt
+  requestingBranchId      BigInt         @map("requesting_branch_id") @db.UnsignedBigInt
+  requestingUserId        BigInt         @map("requesting_user_id") @db.UnsignedBigInt
+  patientPseudonymId      String         @map("patient_pseudonym_id") @db.VarChar(100)
+  bloodGroupId            Int            @map("blood_group_id") @db.UnsignedInt
+  requiredPhenotypeId     BigInt?        @map("required_phenotype_id") @db.UnsignedBigInt
+  bloodComponentId        Int            @map("blood_component_id") @db.UnsignedInt
+  unitsRequested          Int            @map("units_requested") @db.UnsignedInt
+  urgencyLevel            UrgencyLevel   @default(STANDARD) @map("urgency_level")
+  clinicalIndication      String         @map("clinical_indication") @db.Text
+  deliveryRequiredBy      DateTime       @map("delivery_required_by") @db.DateTime(3)
+  status                  RequestStatus  @default(OPEN)
+  createdAt               DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime       @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  institution   Institution        @relation(fields: [requestingInstitutionId], references: [id], onDelete: Restrict, map: "fk_requests_inst")
+  branch        InstitutionBranch  @relation(fields: [requestingBranchId], references: [id], onDelete: Restrict, map: "fk_requests_branch")
+  user          User               @relation(fields: [requestingUserId], references: [id], onDelete: Restrict, map: "fk_requests_user")
+  bloodGroup    BloodGroup         @relation(fields: [bloodGroupId], references: [id], onDelete: Restrict, map: "fk_requests_group")
+  phenotype     BloodPhenotype?    @relation(fields: [requiredPhenotypeId], references: [id], onDelete: Restrict, map: "fk_requests_phenotype")
+  bloodComponent BloodComponent    @relation(fields: [bloodComponentId], references: [id], onDelete: Restrict, map: "fk_requests_component")
+
+  reservations  Reservation[]
+  conversations Conversation[]
+
+  @@index([status, urgencyLevel, deliveryRequiredBy], map: "idx_requests_status_urgency")
+  @@map("blood_requests")
+}
+
+enum ReservationStatus {
+  HELD
+  CONFIRMED_FOR_DISPATCH
+  DISPATCHED
+  COMPLETED
+  RELEASED_EXPIRED
+  CANCELLED
+}
+
+model Reservation {
+  id                   BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  reservationCode      String            @unique(map: "uq_reservations_code") @map("reservation_code") @db.VarChar(60)
+  requestId            BigInt            @map("request_id") @db.UnsignedBigInt
+  inventoryUnitId      BigInt            @map("inventory_unit_id") @db.UnsignedBigInt
+  holdingInstitutionId BigInt            @map("holding_institution_id") @db.UnsignedBigInt
+  holdingBranchId      BigInt            @map("holding_branch_id") @db.UnsignedBigInt
+  reservedByUserId     BigInt            @map("reserved_by_user_id") @db.UnsignedBigInt
+  status               ReservationStatus @default(HELD)
+  expiresAt            DateTime          @map("expires_at") @db.DateTime(3)
+  reservedAt           DateTime          @default(now()) @map("reserved_at") @db.DateTime(3)
+  releasedAt           DateTime?         @map("released_at") @db.DateTime(3)
+  releaseReason        String?           @map("release_reason") @db.VarChar(255)
+  createdAt            DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  request            BloodRequest       @relation(fields: [requestId], references: [id], onDelete: Restrict, map: "fk_reservations_request")
+  inventoryUnit      BloodInventoryUnit @relation(fields: [inventoryUnitId], references: [id], onDelete: Restrict, map: "fk_reservations_unit")
+  holdingInstitution Institution        @relation(fields: [holdingInstitutionId], references: [id], onDelete: Restrict, map: "fk_reservations_institution")
+  holdingBranch      InstitutionBranch  @relation(fields: [holdingBranchId], references: [id], onDelete: Restrict, map: "fk_reservations_branch")
+  reservedByUser     User               @relation(fields: [reservedByUserId], references: [id], onDelete: Restrict, map: "fk_reservations_user")
+
+  inventoryMovements InventoryMovement[]
+
+  @@index([status, expiresAt], map: "idx_reservations_status_expiry")
+  @@index([inventoryUnitId, status], map: "idx_reservations_unit_active")
+  @@map("reservations")
+}
+
+enum MovementType {
+  INTAKE
+  VERIFICATION_PASSED
+  VERIFICATION_FAILED
+  RESERVED
+  RESERVATION_CANCELLED
+  RESERVATION_EXPIRED
+  DISPATCHED
+  TRANSFERRED
+  DISCARDED_EXPIRED
+  QUARANTINED
+}
+
+model InventoryMovement {
+  id                     BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  inventoryUnitId        BigInt       @map("inventory_unit_id") @db.UnsignedBigInt
+  movementType           MovementType @map("movement_type")
+  previousStatus         UnitStatus   @map("previous_status")
+  newStatus              UnitStatus   @map("new_status")
+  referenceReservationId BigInt?      @map("reference_reservation_id") @db.UnsignedBigInt
+  performedByUserId      BigInt       @map("performed_by_user_id") @db.UnsignedBigInt
+  notes                  String       @db.VarChar(500)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+
+  inventoryUnit BloodInventoryUnit @relation(fields: [inventoryUnitId], references: [id], onDelete: Cascade, map: "fk_movements_unit")
+  reservation   Reservation?       @relation(fields: [referenceReservationId], references: [id], onDelete: SetNull, map: "fk_movements_reservation")
+  performer     User               @relation(fields: [performedByUserId], references: [id], onDelete: Restrict, map: "fk_movements_performer")
+
+  @@index([inventoryUnitId, movementType, createdAt], map: "idx_movements_unit_type")
+  @@map("inventory_movements")
+}
+
+// ------------------------------------------------------------------------------
+// 6. COMMUNICATION, NOTIFICATIONS & AUDIT
+// ------------------------------------------------------------------------------
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+model Conversation {
+  id                BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  channelIdentifier String             @unique(map: "uq_conversations_channel") @map("channel_identifier") @db.VarChar(100)
+  institutionAId    BigInt             @map("institution_a_id") @db.UnsignedBigInt
+  institutionBId    BigInt             @map("institution_b_id") @db.UnsignedBigInt
+  requestId         BigInt?            @map("request_id") @db.UnsignedBigInt
+  status            ConversationStatus @default(ACTIVE)
+  lastMessageAt     DateTime?          @map("last_message_at") @db.DateTime(3)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+
+  institutionA Institution   @relation("ConversationInstA", fields: [institutionAId], references: [id], onDelete: Cascade, map: "fk_conv_inst_a")
+  institutionB Institution   @relation("ConversationInstB", fields: [institutionBId], references: [id], onDelete: Cascade, map: "fk_conv_inst_b")
+  request      BloodRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull, map: "fk_conv_request")
+  messages     Message[]
+
+  @@index([institutionAId, institutionBId], map: "idx_conversations_participants")
+  @@map("conversations")
+}
+
+model Message {
+  id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  conversationId      BigInt    @map("conversation_id") @db.UnsignedBigInt
+  senderUserId        BigInt    @map("sender_user_id") @db.UnsignedBigInt
+  senderInstitutionId BigInt    @map("sender_institution_id") @db.UnsignedBigInt
+  messageText         String    @map("message_text") @db.Text
+  isRead              Boolean   @default(false) @map("is_read")
+  readAt              DateTime? @map("read_at") @db.DateTime(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade, map: "fk_msg_conversation")
+  senderUser   User         @relation(fields: [senderUserId], references: [id], onDelete: Restrict, map: "fk_msg_sender_user")
+  senderInst   Institution  @relation(fields: [senderInstitutionId], references: [id], onDelete: Restrict, map: "fk_msg_sender_inst")
+
+  @@index([conversationId, createdAt], map: "idx_messages_conv_created")
+  @@map("messages")
+}
+
+enum NotificationType {
+  EXPIRY_ALERT
+  STOCK_LOW
+  RESERVATION_REQUEST
+  RESERVATION_EXPIRED
+  DISPATCH_UPDATE
+  EMERGENCY_BROADCAST
+}
+
+enum UrgencyAlertLevel {
+  INFO
+  WARNING
+  URGENT
+}
+
+model Notification {
+  id                     BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  recipientUserId        BigInt            @map("recipient_user_id") @db.UnsignedBigInt
+  recipientInstitutionId BigInt?           @map("recipient_institution_id") @db.UnsignedBigInt
+  title                  String            @db.VarChar(255)
+  message                String            @db.Text
+  notificationType       NotificationType  @map("notification_type")
+  urgency                UrgencyAlertLevel @default(INFO)
+  isRead                 Boolean           @default(false) @map("is_read")
+  readAt                 DateTime?         @map("read_at") @db.DateTime(3)
+  actionLink             String?           @map("action_link") @db.VarChar(255)
+  createdAt              DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+
+  recipientUser        User         @relation(fields: [recipientUserId], references: [id], onDelete: Cascade, map: "fk_notif_user")
+  recipientInstitution Institution? @relation(fields: [recipientInstitutionId], references: [id], onDelete: Cascade, map: "fk_notif_inst")
+
+  @@index([recipientUserId, isRead, createdAt], map: "idx_notifications_user_read")
+  @@map("notifications")
+}
+
+enum AuditAction {
+  INSERT
+  UPDATE
+  DELETE
+  VIEW_SENSITIVE
+  RESERVATION_LOCK
+}
+
+model AuditLog {
+  id                BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  tableName         String      @map("table_name") @db.VarChar(100)
+  recordId          BigInt      @map("record_id") @db.UnsignedBigInt
+  action            AuditAction
+  performedByUserId BigInt?     @map("performed_by_user_id") @db.UnsignedBigInt
+  ipAddress         String?     @map("ip_address") @db.VarChar(45)
+  userAgent         String?     @map("user_agent") @db.VarChar(255)
+  oldValues         Json?       @map("old_values")
+  newValues         Json?       @map("new_values")
+  createdAt         DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+
+  performedByUser User? @relation(fields: [performedByUserId], references: [id], onDelete: SetNull, map: "fk_audit_user")
+
+  @@index([tableName, recordId], map: "idx_audit_table_record")
+  @@index([performedByUserId, createdAt], map: "idx_audit_performer")
+  @@map("audit_logs")
+}
+
+enum ConsentType {
+  BLOOD_REQUEST_DISCOVERY
+  EMERGENCY_COORDINATION
+  DATA_PROCESSING_DPDP
+  CROSSMATCH_DATA_SHARING
+}
+
+enum ConsentStatus {
+  GRANTED
+  WITHDRAWN
+  EXPIRED
+}
+
+model ConsentRecord {
+  id                 BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  patientPseudonymId String        @map("patient_pseudonym_id") @db.VarChar(100)
+  userId             BigInt?       @map("user_id") @db.UnsignedBigInt
+  institutionId      BigInt        @map("institution_id") @db.UnsignedBigInt
+  consentType        ConsentType   @map("consent_type")
+  consentStatus      ConsentStatus @default(GRANTED) @map("consent_status")
+  consentTimestamp   DateTime      @default(now()) @map("consent_timestamp") @db.DateTime(3)
+  withdrawnTimestamp DateTime?     @map("withdrawn_timestamp") @db.DateTime(3)
+  evidenceDigest     String        @map("evidence_digest") @db.VarChar(128)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull, map: "fk_consent_user")
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict, map: "fk_consent_institution")
+
+  @@index([patientPseudonymId, consentStatus], map: "idx_consent_pseudonym")
+  @@map("consent_records")
+}
