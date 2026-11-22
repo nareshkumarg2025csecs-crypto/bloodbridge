@@ -1,0 +1,79 @@
+[
+  {
+    "num": 1,
+    "category": "Authentication & RBAC",
+    "item": "Super Admin Authentication & JWT Generation",
+    "status": "PASS",
+    "evidence": "Successfully authenticated Dr. Sundaram Rajagopal (Role: SUPER_ADMIN) with cryptographic JWT"
+  },
+  {
+    "num": 1.1,
+    "category": "Authentication & RBAC",
+    "item": "Hospital Blood Bank Officer Scoping",
+    "status": "PASS",
+    "evidence": "Authenticated Dr. Anand Krishnan bound to Kilpauk Medical Hub"
+  },
+  {
+    "num": 2,
+    "category": "Hospital Verification",
+    "item": "Chennai Licensed Blood Bank Network",
+    "status": "PASS",
+    "evidence": "All 8 institutions verified with Drugs Control / CDSCO licenses and physical branches"
+  },
+  {
+    "num": 3,
+    "category": "Blood Inventory",
+    "item": "Real-Time Availability & Stock Aggregation",
+    "status": "PASS",
+    "evidence": "Retrieved 4 verified units in database across all Chennai operational branches"
+  },
+  {
+    "num": 4,
+    "category": "Rare Phenotype Filtering",
+    "item": "Bombay Phenotype (Oh) Strict Segregation",
+    "status": "PASS",
+    "evidence": "Identified 2 Bombay Oh units with mandatory serological verification (Safety: Anti-H antibody precautions enforced)"
+  },
+  {
+    "num": 5,
+    "category": "Blood Requests",
+    "item": "Emergency Requisition Creation",
+    "status": "PASS",
+    "evidence": "Created blood request REQ-AUDIT-1795358609408 with pseudonymized patient identifier"
+  },
+  {
+    "num": 6,
+    "category": "Concurrency Protection",
+    "item": "Atomic Unit Reservation & Row Lock",
+    "status": "PASS",
+    "evidence": "Contention test: Exactly 1 reservation succeeded, 1 conflict prevented with zero race condition"
+  },
+  {
+    "num": 7,
+    "category": "Nexconn Cloud Messaging",
+    "item": "Real-Time Inter-Hospital Chat Relay",
+    "status": "PASS",
+    "evidence": "Verified genuine signed token (Singapore Cloud) and 2 persistent messages in MySQL"
+  },
+  {
+    "num": 8,
+    "category": "Notification Delivery",
+    "item": "Critical Shortage Alerts & In-App Pushes",
+    "status": "PASS",
+    "evidence": "Retrieved 2 institutional alerts (SMS/IVR safely mocked to avoid unwanted live dispatches)"
+  },
+  {
+    "num": 9,
+    "category": "Privacy & Audit Protections",
+    "item": "DPDP Act Isolation & Movement Journal",
+    "status": "PASS",
+    "evidence": "Verified 7 inventory movements and strict zero-PII in blood unit records"
+  },
+  {
+    "num": 10,
+    "category": "Full-Stack Integration",
+    "item": "Live React/Vite UI to Express API",
+    "status": "PASS",
+    "evidence": "Navigated all 4 protected screens (Home, Inventory, Requests, Chat) with valid session and 0 JavaScript errors"
+  }
+]

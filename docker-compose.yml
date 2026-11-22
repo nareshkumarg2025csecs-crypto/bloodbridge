@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  bloodbridge-mysql:
+    image: mysql:8.0.46
+    container_name: bloodbridge-prod-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PROD_MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: bloodbridge_prod
+      MYSQL_USER: bloodbridge_app
+      MYSQL_PASSWORD: ${PROD_DB_PASSWORD}
+    # Security: Do not expose port 3306 to host network in production; kept internal to docker network
+    expose:
+      - "3306"
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  bloodbridge-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bloodbridge-prod-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: mysql://bloodbridge_app:${PROD_DB_PASSWORD}@bloodbridge-mysql:3306/bloodbridge_prod
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    ports:
+      - "5000:5000"
+    depends_on:
+      - bloodbridge-mysql
+
+volumes:
+  mysql_prod_data:
