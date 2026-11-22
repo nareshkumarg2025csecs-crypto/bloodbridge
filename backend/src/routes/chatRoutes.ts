@@ -40,7 +40,7 @@ chatRouter.get('/conversations', authenticateJwt, (req: AuthenticatedRequest, re
 
 // GET /api/v1/chat/messages/:channelId
 chatRouter.get('/messages/:channelId', authenticateJwt, (req: AuthenticatedRequest, res: Response) => {
-  const { channelId } = req.params;
+  const channelId = Array.isArray(req.params.channelId) ? req.params.channelId[0] : req.params.channelId;
   const user = req.user!;
   const rawMessages = db.chatMessages.get(channelId) || [];
 
@@ -61,7 +61,7 @@ chatRouter.get('/messages/:channelId', authenticateJwt, (req: AuthenticatedReque
 
 // POST /api/v1/chat/messages/:channelId
 chatRouter.post('/messages/:channelId', authenticateJwt, async (req: AuthenticatedRequest, res: Response) => {
-  const { channelId } = req.params;
+  const channelId = Array.isArray(req.params.channelId) ? req.params.channelId[0] : req.params.channelId;
   const { text } = req.body;
   const user = req.user!;
   const inst = user.institutionId ? db.institutions.get(user.institutionId) : null;

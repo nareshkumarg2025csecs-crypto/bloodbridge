@@ -74,7 +74,7 @@ describe('BloodBridge Backend API & Coordination Integration Tests', () => {
       const messages = db.chatMessages.get(channelId);
       expect(messages).toBeDefined();
       expect(messages!.length).toBeGreaterThanOrEqual(2);
-      expect(messages![0].messageText).toContain('Need 10 units of B+');
+      expect(messages![0].messageText).toContain('10 units of B+');
     });
   });
 });

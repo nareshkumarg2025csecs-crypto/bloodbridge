@@ -70,7 +70,7 @@ inventoryRouter.get('/', authenticateJwt, (req: AuthenticatedRequest, res: Respo
 
 // PUT /api/v1/inventory/stock/:id
 inventoryRouter.put('/stock/:id', authenticateJwt, (req: AuthenticatedRequest, res: Response) => {
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { units } = req.body;
 
   if (typeof units !== 'number' || units < 0) {
