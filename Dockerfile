@@ -26,17 +26,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Install production dependencies for backend only
-COPY backend/package*.json ./
+# Install production dependencies
+COPY package*.json ./
+COPY prisma ./prisma/
 RUN npm ci --only=production
+COPY backend/package*.json ./backend/
+WORKDIR /app/backend
+RUN npm ci --only=production
+RUN npx prisma generate --schema=../prisma/schema.prisma
 
-# Copy compiled backend and generated Prisma client
+# Copy compiled backend
 COPY --from=backend-builder /app/backend/dist ./dist
-COPY --from=backend-builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=backend-builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Copy built frontend static assets for serving
-COPY --from=frontend-builder /app/dist ./public
 
 EXPOSE 5000
 
