@@ -17,7 +17,8 @@ COPY backend/package*.json ./backend/
 WORKDIR /app/backend
 RUN npm ci
 COPY backend/ ./
-RUN npx prisma generate --schema=../prisma/schema.prisma
+COPY prisma ./prisma
+RUN npx prisma generate --schema=./prisma/schema.prisma
 RUN npm run build
 
 # Stage 3: Production Runtime
@@ -33,7 +34,8 @@ RUN npm ci --only=production
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
 RUN npm ci --only=production
-RUN npx prisma generate --schema=../prisma/schema.prisma
+COPY prisma ./prisma
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Copy compiled backend
 COPY --from=backend-builder /app/backend/dist ./dist
