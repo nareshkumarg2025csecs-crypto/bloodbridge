@@ -175,7 +175,7 @@ export async function runFullIntegrationSuite(): Promise<TestReportItem[]> {
     });
 
     const hasWarning = bombay?.transfusionSafetyWarning?.includes('CRITICAL SAFETY ALERT');
-    const isVerifiedOnly = bombay?.inventoryUnits.every(u => u.verificationStatus === 'LAB_VERIFIED');
+    const isVerifiedOnly = bombay?.inventoryUnits.every((u: any) => u.verificationStatus === 'LAB_VERIFIED');
 
     reports.push({
       section: 'G. Rare Phenotype Architecture',
